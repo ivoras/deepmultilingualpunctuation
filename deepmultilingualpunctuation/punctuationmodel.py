@@ -1,4 +1,3 @@
-from concurrent.futures import process
 from transformers import pipeline
 import re
 import torch
@@ -10,23 +9,23 @@ class PunctuationModel():
         else:
             self.pipe = pipeline("ner", model, aggregation_strategy="none")
 
-    def preprocess(self,text):
+    def preprocess(self, text :str):
         #remove markers except for markers in numbers
         text = re.sub(r"(?<!\d)[.,;:!?](?!\d)","",text)
         #todo: match acronyms https://stackoverflow.com/questions/35076016/regex-to-match-acronyms
         text = text.split()
         return text
 
-    def restore_punctuation(self, text, chunk_size=230, *, sentence_start_upper=False):
+    def restore_punctuation(self, text: str, chunk_size=230, *, sentence_start_upper=False):
         result = self.predict(self.preprocess(text), chunk_size)
         return self.prediction_to_text(result, sentence_start_upper=sentence_start_upper)
 
-    def overlap_chunks(self, lst, n, stride=0):
+    def overlap_chunks(self, lst: list[str], n: int, stride: int = 0):
         """Yield successive n-sized chunks from lst with stride length of overlap."""
         for i in range(0, len(lst), n-stride):
             yield lst[i:i + n]
 
-    def predict(self, words, chunk_size=230):
+    def predict(self, words: list[str], chunk_size=230):
         overlap = 5
         if len(words) <= chunk_size:
             overlap = 0
@@ -75,16 +74,16 @@ class PunctuationModel():
         else:
             last_token_eos = False # end-of-sentence
             for word, label, _ in prediction:
-                if last_token_eos:
+                if last_token_eos or len(result) == 0:
                     word = word[0].upper() + word[1:]
                     last_token_eos = False
                 result += word
                 if label == "0":
                     result += " "
                 elif label in ",-:":
-                    result += label+" "
+                    result += label + " "
                 elif label in ".?":
-                    result += label+" "
+                    result += label + " "
                     last_token_eos = True
 
         return result.strip()
